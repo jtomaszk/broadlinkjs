@@ -449,68 +449,71 @@ Device.prototype.a1 = function () {
         self.sendPacket(0x6a, packet);
     };
 
+    self.decodeLight = function (light) {
+        switch (light) {
+            case 0:
+                return 'dark';
+            case 1:
+                return 'dim';
+            case 2:
+                return 'normal';
+            case 3:
+                return 'bright';
+            default:
+                return 'unknown';
+        }
+    };
+
+    self.decodeAirQuality = function (light) {
+        switch (light) {
+            case 0:
+                return 'excellent';
+            case 1:
+                return 'good';
+            case 2:
+                return 'normal';
+            case 3:
+                return 'bad';
+            default:
+                return 'unknown';
+        }
+    };
+
+    self.decodeNoise = function (light) {
+        switch (light) {
+            case 0:
+                return 'quiet';
+            case 1:
+                return 'normal';
+            case 2:
+                return 'noisy';
+            default:
+                return 'unknown';
+        }
+    };
+
     self.on("payload", function (err, payload) {
         var data = {};
-        var light;
-        var air_quality;
-        var noise;
+        data['type'] = self.type;
 
         if (Number.isInteger(payload[0x4])) {
             data['temperature'] = (payload[0x4] * 10 + payload[0x5]) / 10.0;
             data['humidity'] = (payload[0x6] * 10 + payload[0x7]) / 10.0;
-            light = payload[0x8];
-            air_quality = payload[0x0a];
-            noise = payload[0xc];
-
-            data['temperature_raw'] = (payload[0x4] * 10 + payload[0x5]) / 10.0;
-            data['humidity_raw'] = (payload[0x6] * 10 + payload[0x7]) / 10.0;
             data['light_raw'] = payload[0x8];
             data['air_quality_raw'] = payload[0x0a];
             data['noise_raw'] = payload[0xc];
         } else {
             data['temperature'] = (ord(payload[0x4]) * 10 + ord(payload[0x5])) / 10.0;
             data['humidity'] = (ord(payload[0x6]) * 10 + ord(payload[0x7])) / 10.0;
-            light = ord(payload[0x8]);
-            air_quality = ord(payload[0x0a]);
-            noise = ord(payload[0xc]);
-
-            data['temperature_raw'] = (ord(payload[0x4]) * 10 + ord(payload[0x5])) / 10.0;
-            data['humidity_raw'] = (ord(payload[0x6]) * 10 + ord(payload[0x7])) / 10.0;
             data['light_raw'] = ord(payload[0x8]);
             data['air_quality_raw'] = ord(payload[0x0a]);
             data['noise_raw'] = ord(payload[0xc]);
         }
-        if (light == 0) {
-            data['light'] = 'dark';
-        } else if (light == 1) {
-            data['light'] = 'dim';
-        } else if (light == 2) {
-            data['light'] = 'normal';
-        } else if (light == 3) {
-            data['light'] = 'bright';
-        } else {
-            data['light'] = 'unknown';
-        }
-        if (air_quality == 0) {
-            data['air_quality'] = 'excellent';
-        } else if (air_quality == 1) {
-            data['air_quality'] = 'good';
-        } else if (air_quality == 2) {
-            data['air_quality'] = 'normal';
-        } else if (air_quality == 3) {
-            data['air_quality'] = 'bad';
-        } else {
-            data['air_quality'] = 'unknown';
-        }
-        if (noise == 0) {
-            data['noise'] = 'quiet';
-        } else if (noise == 1) {
-            data['noise'] = 'normal';
-        } else if (noise == 2) {
-            data['noise'] = 'noisy';
-        } else {
-            data['noise'] = 'unknown';
-        }
+
+        data['light'] = self.decodeLight(data['light_raw']);
+        data['air_quality'] = self.decodeAirQuality(data['air_quality_raw']);
+        data['noise'] = self.decodeNoise(data['noise_raw']);
+
         self.emit("json", data);
     });
 };
