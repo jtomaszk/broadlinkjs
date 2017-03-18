@@ -1,0 +1,26 @@
+#!/usr/bin/env node
+
+var app = require('../index');
+
+var b = new app();
+
+b.on("deviceReady", function (dev) {
+    console.log(dev.getType(), dev.host, dev.mac);
+    if (dev.getType() === 'RM2') {
+        dev.checkTemperature();
+    } else if (dev.getType() === 'A1') {
+        console.log("checkSensors");
+        dev.checkSensors();
+    }
+
+    dev.on("temperature", function (temp) {
+        console.log("get temp " + temp);
+    });
+    dev.on("rawData", function (data) {
+        console.log("data: " + data);
+    });
+    dev.on("json", function (data) {
+        console.log("data: " + JSON.stringify(data));
+    });
+});
+b.discover();
