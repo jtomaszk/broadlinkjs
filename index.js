@@ -1,3 +1,5 @@
+"use strict";
+
 var util = require('util');
 var EventEmitter = require('events');
 var dgram = require('dgram');
@@ -162,9 +164,7 @@ Broadlink.prototype.discover = function () {
         checksum = checksum & 0xffff;
         packet[0x20] = checksum & 0xff;
         packet[0x21] = checksum >> 8;
-
         cs.sendto(packet, 0, packet.length, 80, '255.255.255.255');
-
     });
 
     cs.on("message", function (msg, rinfo) {
@@ -205,9 +205,7 @@ function Device(host, mac) {
     self.iv = new Buffer([0x56, 0x2e, 0x17, 0x99, 0x6d, 0x09, 0x3d, 0x28, 0xdd, 0xb3, 0xba, 0x69, 0x5a, 0x2e, 0x6f, 0x58]);
     self.id = new Buffer([0, 0, 0, 0]);
     self.cs = dgram.createSocket({type: 'udp4', reuseAddr: true});
-    self.cs.on('listening', function () {
-        //self.cs.setBroadcast(true);
-    });
+
     self.cs.on("message", function (response, rinfo) {
         var enc_payload = Buffer.alloc(response.length - 0x38, 0);
         response.copy(enc_payload, 0, 0x38);
@@ -271,7 +269,7 @@ Device.prototype.auth = function () {
     payload[0x36] = '1'.charCodeAt(0);
 
     this.sendPacket(0x65, payload);
-}
+};
 
 Device.prototype.getType = function () {
     return this.type;
@@ -328,7 +326,7 @@ Device.prototype.sendPacket = function (command, payload) {
     packet[0x21] = checksum >> 8;
 
     this.cs.sendto(packet, 0, packet.length, this.host.port, this.host.address);
-}
+};
 
 Device.prototype.mp1 = function () {
     this.type = "MP1";
@@ -528,7 +526,7 @@ Device.prototype.rm = function () {
     };
 
     self.sendData = function (data) {
-        packet = new Buffer([0x02, 0x00, 0x00, 0x00]);
+        var packet = new Buffer([0x02, 0x00, 0x00, 0x00]);
         packet = Buffer.concat([packet, data]);
         self.sendPacket(0x6a, packet);
     };
@@ -552,6 +550,7 @@ Device.prototype.rm = function () {
                 var temp = (payload[0x4] * 10 + payload[0x5]) / 10.0;
                 self.emit("temperature", temp);
                 break;
+            case 2: //get from check_data
             case 4: //get from check_data
                 var data = Buffer.alloc(payload.length - 4, 0);
                 payload.copy(data, 0, 4);
@@ -559,9 +558,7 @@ Device.prototype.rm = function () {
                 break;
             case 3:
                 break;
-            case 4:
-                break;
         }
     });
-}
+};
 
