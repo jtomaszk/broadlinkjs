@@ -4,23 +4,20 @@ var app = require('../index');
 
 var b = new app();
 
+var type = process.argv[2];
+var command = process.argv[3];
+
 b.on("deviceReady", function (dev) {
     console.log("--- deviceReady ---");
+    console.log(JSON.stringify(dev.host));
     console.log(dev.getType(), dev.host, dev.mac);
 
-    if (dev.getType() === 'RM2') {
-        dev.checkTemperature();
-    } else if (dev.getType() === 'A1') {
-        console.log("checkSensors");
-        dev.checkSensors();
+    if (dev.getType() === type) { //RM2
+        dev.runCommand(command, "");
+    } else if (dev.getType() === type) { //A1
+        dev.runCommand(command, ""); //checkSensors
     }
 
-    dev.on("temperature", function (temp) {
-        console.log("get temp " + temp);
-    });
-    dev.on("rawData", function (data) {
-        console.log("data: " + data);
-    });
     dev.on("json", function (data) {
         console.log("data: " + JSON.stringify(data));
     });

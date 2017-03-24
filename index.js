@@ -441,10 +441,15 @@ Device.prototype.a1 = function () {
     var self = this;
 
     self.type = "A1";
+
     self.checkSensors = function () {
         var packet = Buffer.alloc(16, 0);
         packet[0] = 1;
         self.sendPacket(0x6a, packet);
+    };
+
+    self.runCommand = function (command, args) {
+        return self.checkSensors();
     };
 
     self.decodeLight = function (light) {
@@ -519,6 +524,41 @@ Device.prototype.a1 = function () {
 Device.prototype.rm = function () {
     var self = this;
     self.type = "RM2";
+    self.checkIntervalId = null;
+
+    self.setCheckInterval = function() {
+        self.checkIntervalId = setInterval(function() {
+            console.log('checkInterval');
+            self.checkData();
+        }, 1000);
+    }
+ 
+    self.clearCheckInterval = function(timeout) {
+        if (self.checkIntervalId != null) {
+            clearInterval(self.checkIntervalId);
+            self.checkIntervalId = null;
+            if (timeout) {
+                var dataJSON = {};
+                dataJSON['type'] = self.type;
+                dataJSON["topic"] = "code-error";
+                dataJSON["error"] = "timeout";
+                self.emit("json", dataJSON);
+            }
+        }
+    }
+    self.runCommand = function (command, args) {
+        switch (command) {
+            case "send":
+                return this.sendData(args);
+            case "learn":
+                return this.enterLearning();
+            case "checkTemperature":
+                return this.checkTemperature();
+            case "checkData":
+                return this.checkData();
+        };
+    };
+
     self.checkData = function () {
         var packet = Buffer.alloc(16, 0);
         packet[0] = 4;
@@ -527,13 +567,17 @@ Device.prototype.rm = function () {
 
     self.sendData = function (data) {
         var packet = new Buffer([0x02, 0x00, 0x00, 0x00]);
-        packet = Buffer.concat([packet, data]);
+        packet = Buffer.concat([packet, new Buffer(data, 'base64')]);
         self.sendPacket(0x6a, packet);
     };
 
     self.enterLearning = function () {
         var packet = Buffer.alloc(16, 0);
         packet[0] = 3;
+        self.setCheckInterval();
+        setTimeout(function() { 
+            self.clearCheckInterval(true);
+        }, 15000);
         self.sendPacket(0x6a, packet);
     };
 
@@ -545,20 +589,32 @@ Device.prototype.rm = function () {
 
     self.on("payload", function (err, payload) {
         var param = payload[0];
+        var dataJSON = {};
+        dataJSON['type'] = self.type;
+        dataJSON['param'] = param;
+
         switch (param) {
-            case 1:
+            case 1:  //response from checkTemperature
                 var temp = (payload[0x4] * 10 + payload[0x5]) / 10.0;
-                self.emit("temperature", temp);
+                dataJSON["payload"] = temp;
+                dataJSON["topic"] = "temperature";
                 break;
-            case 2: //get from check_data
-            case 4: //get from check_data
+            case 4: //response from checkData
+                self.clearCheckInterval(false);
                 var data = Buffer.alloc(payload.length - 4, 0);
                 payload.copy(data, 0, 4);
-                self.emit("rawData", data);
+                dataJSON["payload"] = data.toString('base64');
+                dataJSON["topic"] = "code";
                 break;
-            case 3:
+            case 2: //response from sendData
+            case 3: //response from enterLearning
+            default:
+                dataJSON["payload"] = payload;
+                dataJSON["topic"] = "raw";
                 break;
         }
+
+        self.emit("json", dataJSON);
     });
 };
 
